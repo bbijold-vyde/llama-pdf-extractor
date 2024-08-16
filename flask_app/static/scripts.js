@@ -1,127 +1,117 @@
-// Function to upload files
 function uploadFiles() {
-    const fileInput = document.getElementById('fileInput');
-    const files = fileInput.files;
-    
-    if (files.length === 0) {
-        alert("Please select files to upload.");
-        return;
-    }
-
+    const input = document.getElementById('fileInput');
+    const files = input.files;
     const formData = new FormData();
     for (let i = 0; i < files.length; i++) {
-        formData.append('file', files[i]);
+        formData.append('files[]', files[i]);
     }
 
     fetch('/upload', {
         method: 'POST',
         body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.message) {
-            alert(data.message);
-            updateFileList();
+    }).then(response => {
+        if (response.ok) {
+            alert('Files uploaded successfully');
+            listFiles();
         } else {
-            alert("File upload failed.");
+            alert('File upload failed');
         }
-    })
-    .catch(error => console.error('Error:', error));
+    });
 }
 
-// Function to update file list
-function updateFileList() {
-    fetch('/file-list')
-    .then(response => response.json())
-    .then(data => {
-        const fileList = document.getElementById('fileList');
-        fileList.innerHTML = '';
-        data.files.forEach(file => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item d-flex justify-content-between align-items-center';
-            li.textContent = file;
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'btn btn-danger btn-sm';
-            deleteButton.textContent = 'Delete';
-            deleteButton.onclick = () => deleteFile(file);
-            li.appendChild(deleteButton);
-            fileList.appendChild(li);
+function listFiles() {
+    fetch('/files')
+        .then(response => response.json())
+        .then(files => {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.textContent = file;
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'btn btn-danger btn-sm';
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = () => deleteFile(file);
+                li.appendChild(deleteButton);
+                fileList.appendChild(li);
+            });
         });
-    })
-    .catch(error => console.error('Error:', error));
 }
 
-// Function to delete a single file
-function deleteFile(filename) {
-    fetch(`/delete/${filename}`, {
-        method: 'DELETE'
-    })
-    .then(response => response.json())
-    .then(data => {
-        alert(data.message);
-        updateFileList();
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-// Function to delete all files
-function deleteAllFiles() {
-    fetch('/delete-all', {
-        method: 'DELETE'
-    })
-    .then(response => response.json())
-    .then(data => {
-        alert(data.message);
-        updateFileList();
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-// Function to process files
 function processFiles() {
+    const progressBar = document.getElementById('progressBar');
+    const processResult = document.getElementById('processResult');
+    progressBar.style.width = '0%';
+    progressBar.setAttribute('aria-valuenow', 0);
+    progressBar.textContent = '0%';
+    processResult.textContent = '';
+
     fetch('/process', {
         method: 'POST'
-    })
-    .then(response => response.json())
-    .then(data => {
-        const progressBar = document.getElementById('progressBar');
-        let progress = 0;
-        const interval = setInterval(() => {
-            progress += 10;
-            progressBar.style.width = `${progress}%`;
-            progressBar.textContent = `${progress}%`;
-            if (progress >= 100) {
-                clearInterval(interval);
-                document.getElementById('processResult').textContent = data.message;
-            }
-        }, 500);
-    })
-    .catch(error => console.error('Error:', error));
-}
-
-// Function to download the XLSX file
-function downloadXLSX() {
-    fetch('/download-xlsx', {
-        method: 'GET'
-    })
-    .then(response => {
+    }).then(response => {
         if (response.ok) {
-            response.blob().then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'processed_data.xlsx';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-            });
+            const interval = setInterval(() => {
+                fetch('/status')
+                    .then(response => response.json())
+                    .then(status => {
+                        const progress = Math.round((status.processed_files / status.total_files) * 100);
+                        progressBar.style.width = `${progress}%`;
+                        progressBar.setAttribute('aria-valuenow', progress);
+                        progressBar.textContent = `${progress}%`;
+                        processResult.textContent = `Processing file: ${status.current_file}`;
+
+                        if (progress === 100) {
+                            clearInterval(interval);
+                            processResult.textContent = 'Processing complete!';
+                        }
+                    });
+            }, 1000);
         } else {
-            alert('Failed to download the XLSX file.');
+            alert('File processing failed');
         }
-    })
-    .catch(error => console.error('Error:', error));
+    });
 }
 
-// Initial update of the file list when the page loads
-document.addEventListener('DOMContentLoaded', updateFileList);
- 
+function downloadXLSX() {
+    window.location.href = '/download_xlsx';
+}
+
+function deleteFile(filename) {
+    const formData = new FormData();
+    formData.append('filename', filename);
+
+    fetch('/delete', {
+        method: 'POST',
+        body: formData
+    }).then(response => {
+        if (response.ok) {
+            alert('File deleted successfully');
+            listFiles();
+        } else {
+            alert('File deletion failed');
+        }
+    });
+}
+
+function deleteAllFiles() {
+    fetch('/delete_all', {
+        method: 'POST'
+    }).then(response => {
+        if (response.ok) {
+            alert('All files deleted successfully');
+            listFiles();
+        } else {
+            alert('Failed to delete all files');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', listFiles);
+
+document.querySelector('.custom-file-input').addEventListener('change', function(e) {
+    const files = Array.from(document.getElementById("fileInput").files);
+    const fileNames = files.map(file => file.name).join(', ');
+    const nextSibling = e.target.nextElementSibling;
+    nextSibling.innerText = fileNames;
+});

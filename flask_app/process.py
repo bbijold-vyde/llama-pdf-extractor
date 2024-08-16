@@ -7,7 +7,8 @@ import json
 import pandas as pd
 from langchain_community.llms import Ollama
 
-
+#API KEY
+openai.api_key = "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"
 
 #PDF READ
 def read_pdf(file_path):
