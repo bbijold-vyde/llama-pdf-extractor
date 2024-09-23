@@ -36,8 +36,8 @@ def process_files_thread():
 
 @app.route('/download_xlsx', methods=['GET'])
 def download_xlsx():
-    output_csv_path = '/Users/kovacsbence/Desktop/Flask/output.csv'
-    output_xlsx_path = '/Users/kovacsbence/Desktop/Flask/flask_app/output.xlsx'
+    output_csv_path = 'outputs/output.csv'
+    output_xlsx_path = 'outputs/output.xlsx'
     df = pd.read_csv(output_csv_path)
     df.to_excel(output_xlsx_path, index=False)
     return send_file(output_xlsx_path, as_attachment=True)
