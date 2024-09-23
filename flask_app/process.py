@@ -72,21 +72,21 @@ def extract_data_with_llama(textOfCV):
     #print(result)
     return result
 
-def test_prompt(text): 
-    prompt = ("Based on the following text, please collect the account owner's transaction data and format them in JSON format. The data must include date, description, and amount. If any data is not available, do not add the transaction. The text is:" +  text + " \n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...} The response contains only the JSON structure.")
-    response = ollama.chat(model='llama3.1', messages=[
-        {
-            'role': 'assistant',
-            'content': prompt,
-        },
-    ])
-    print("pass llm load")
+# def test_prompt(text): 
+#     prompt = ("Based on the following text, please collect the account owner's transaction data and format them in JSON format. The data must include date, description, and amount. If any data is not available, do not add the transaction. The text is:" +  text + " \n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...} The response contains only the JSON structure.")
+#     response = ollama.chat(model='llama3.1', messages=[
+#         {
+#             'role': 'assistant',
+#             'content': prompt,
+#         },
+#     ])
+#     print("pass llm load")
 
-    prompt = ("Based on the following text, please collect the account owner's transaction data and format them in JSON format. The data must include date, description, and amount. If any data is not available, do not add the transaction. The text is:" +  text + " \n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...} The response contains only the JSON structure.")
-    print(response)
-    # result = llm.invoke(prompt)
-    #print(result)
-    return response
+#     prompt = ("Based on the following text, please collect the account owner's transaction data and format them in JSON format. The data must include date, description, and amount. If any data is not available, do not add the transaction. The text is:" +  text + " \n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...} The response contains only the JSON structure.")
+#     print(response)
+#     # result = llm.invoke(prompt)
+#     #print(result)
+#     return response
 
 
 def post_process(response_text):
