@@ -2,13 +2,22 @@ import openai
 import re
 import fitz  # PyMuPDF PDF READ
 import os
+import csv
 import time
 import json
 import pandas as pd
-from langchain_community.llms import Ollama
+# from langchain_community.llms import Ollama
+from llama_index.core.bridge.pydantic import BaseModel
+from llama_index.llms.ollama import Ollama
+from pdf2image import convert_from_path
+import pytesseract
+from PIL import Image
 
-#API KEY
-# openai.api_key = "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"
+
+CONVERTED_FOLDER =  'converted'
+
+pytesseract.pytesseract.tesseract_cmd = "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+
 
 #PDF READ
 def read_pdf(file_path):
@@ -18,11 +27,7 @@ def read_pdf(file_path):
 
         # Extract text from the first page
         first_page_text = doc[2].get_text()
-        # for page in doc:
-        #     text = page.get_text()
-        #     print(text)
-            # Some transactions are wrong due to how a PDF to Text functions - highlight on pdf for proof. 
-
+       
         # Close the document
         doc.close()
 
@@ -30,53 +35,59 @@ def read_pdf(file_path):
     except Exception as e:
         print("Error opening PDF: " + str(e) + file_path)
         return "Error opening PDF: " + str(e) + file_path
+    
+def read_png(file_path):
+    print(file_path)
+    try: 
+        text = pytesseract.image_to_string(Image.open(file_path))
+        return text
+    except Exception as e:
+        print("Error opening PNG: " + str(e) + file_path)
+        return "Error opening PNG: " + str(e) + file_path
+    
 
-# def extract_data_with_gpt(textOfCV):
-#     # Replace this with an appropriate prompt for the GPT model based on your data
-#     prompt = (
-#     "A következő szöveg alapján kérlek, gyűjtsd ki a jelentkező adatait, és formázd őket JSON formátumba. "
-#     "Az adatok között szerepelnie kell a névnek, email címnek, telefonszámnak, középiskola nevének, középiskolai szaknak, "
-#     "egyetem nevének, egyetemi szaknak, idegen nyelvnek és annak szintjének. Ha valamelyik adat nem áll rendelkezésre, "
-#     "az arra vonatkozó mezőt hagyd üresen. A szöveg a következő: \"" + textOfCV + "\"\n"
-#     "A JSON formátum a következő legyen:\n"
-#     "{\n"
-#     "    \"nev\": \"<NÉV>\",\n"
-#     "    \"email\": \"<EMAIL>\",\n"
-#     "    \"telefonszam\": \"<TELEFONSZÁM>\",\n"
-#     "    \"kozepiskola\": \"<KÖZÉPISKOLA>\",\n"
-#     "    \"kozep_szak\": \"<KÖZÉPISKOLAI SZAK>\",\n"
-#     "    \"egyetem\": \"<EGYETEM>\",\n"
-#     "    \"egyetem_szak\": \"<EGYETEMI SZAK>\",\n"
-#     "    \"nyelvvizsga\": \"<NYELVVIZSGA>\",\n"
-#     "    \"nyelv_szintje\": \"<NYELV SZINTJE>\"\n"
-#     "}"
-#     )
-
-#     response = openai.Completion.create(model="gpt-3.5-turbo-instruct", prompt=prompt, max_tokens=1024)
-#     return response.choices[0].text.strip()
 
 def extract_data_with_llama(textOfCV):
-    llm = Ollama(model="llama3.1", format="json")
-    prompt = (
- "Based on the following text, please collect the account owner's transaction data and format them in JSON format."
- "The data must include date, description, and amount. If any data is not available, "
- "do not add the transaction. The text is: \"" + textOfCV + "\"\n"
- "Format should be:"
- "\n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...}"
-#  " \"Date\": \"<DATE>\",\n"
-#  " \"Description\": \"<DESCRIPTION>\",\n"
-#  " \"Amount\": \"<AMOUNT>\",\n"
-#  "},{...},{...}"
-#  "{Date: <DATE>,\n"
-#  "Description: <DESCRIPTION>,\n"
-#  " Amount: <AMOUNT>,\n"
-#  "},{...},{...}"
-#  "Using double quotes for the '{'\"Key\": \"Value\"'}' pairs. "
- "The response contains only the JSON structure."
-    )
-    result = llm.invoke(prompt)
+    llm = Ollama(model="llama3.1:latest", json_mode=True)
+    prompt = ("Based on the following text, please collect the account owner's transaction data and format them in JSON format. The data must include date, description, and amount. If any data is not available, do not add the transaction. The text is:" +  textOfCV + " \n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...} The response contains only the JSON structure.")
+
+#     prompt = (
+#  "Based on the following text, please collect the account owner's transaction data and format them in JSON format."
+#  "The data must include date, description, and amount. If any data is not available, "
+#  "do not add the transaction. The text is: \"" + textOfCV + "\"\n"
+#  "Format should be:"
+#  "\n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...}"
+# #  " \"Date\": \"<DATE>\",\n"
+# #  " \"Description\": \"<DESCRIPTION>\",\n"
+# #  " \"Amount\": \"<AMOUNT>\",\n"
+# #  "},{...},{...}"
+# #  "{Date: <DATE>,\n"
+# #  "Description: <DESCRIPTION>,\n"
+# #  " Amount: <AMOUNT>,\n"
+# #  "},{...},{...}"
+# #  "Using double quotes for the '{'\"Key\": \"Value\"'}' pairs. "
+#  "The response contains only the JSON structure."
+#     )
+    result = llm.complete(prompt)
     #print(result)
     return result
+
+def test_prompt(text): 
+    prompt = ("Based on the following text, please collect the account owner's transaction data and format them in JSON format. The data must include date, description, and amount. If any data is not available, do not add the transaction. The text is:" +  text + " \n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...} The response contains only the JSON structure.")
+    response = ollama.chat(model='llama3.1', messages=[
+        {
+            'role': 'assistant',
+            'content': prompt,
+        },
+    ])
+    print("pass llm load")
+
+    prompt = ("Based on the following text, please collect the account owner's transaction data and format them in JSON format. The data must include date, description, and amount. If any data is not available, do not add the transaction. The text is:" +  text + " \n{ Date: <DATE>, Description: <DESCRIPTION>, Amount: <AMOUNT> } \n,{...},{...} The response contains only the JSON structure.")
+    print(response)
+    # result = llm.invoke(prompt)
+    #print(result)
+    return response
+
 
 def post_process(response_text):
     # Parse the response text into a dictionary
@@ -97,17 +108,48 @@ def post_process(response_text):
 def process_document(file_path):
     try:
         print(f"Processing {file_path}")
-        textOfCV = read_pdf(file_path)
+        pdf_convert(file_path) #converts page
+        # textOfCV = read_pdf(file_path)
+        files = os.listdir(CONVERTED_FOLDER)
+        for filename in files: 
+            file_path = os.path.join(CONVERTED_FOLDER, filename)
+            if os.path.exists(file_path):
+                print("reading png")
+                textOfCV = read_png(file_path)
+                print(textOfCV)
         response = extract_data_with_llama(textOfCV)
+        print("call llama")
+        # response = test_prompt(textOfCV)
         print(response)
+        f = open('output.csv', 'a')
+        writer = csv.writer(f)
+        writer.writerows(response)
         # data = json.loads(response)
         # print(data)
-        df = pd.DataFrame([response])
-        print(df)
-        print('done')
-        if not os.path.isfile('output.csv'):
-            df.to_csv('output.csv', mode='w', header=True, index=False)
-        else:
-            df.to_csv('output.csv', mode='a', header=False, index=False)
+        # df = pd.DataFrame([response])
+        # # df = 'test'
+        # # print(df)
+        # print('done')
+        # if not os.path.isfile('output.csv'):
+        #     df.to_csv('output.csv', mode='w', header=True, index=False)
+        # else:
+        #     df.to_csv('output.csv', mode='a', header=False, index=False)
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
+def pdf_convert(document):
+    try: 
+        images = convert_from_path(document, 500, poppler_path="C:/Program Files/poppler-24.07.0/Library/bin")
+
+        for i in range(len(images)):
+            images[i].save('converted/page' + str(i) + '.png', 'PNG')
+    except Exception as e: 
+        print(f"An error occurred: {e}")
+
+
+process_document("uploads/testpdf.pdf")
+# print(pytesseract.image_to_string(Image.open("uploads/testpdf.pdf")))
+
+
+

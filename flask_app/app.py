@@ -7,6 +7,7 @@ import pandas as pd
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'outputs'
+CONVERTED_FOLDER =  'converted'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -19,7 +20,12 @@ processing_status = {
 
 def process_files_thread():
     global processing_status
+    # for each uploades - call pdf convert
     files = os.listdir(UPLOAD_FOLDER)
+    # for filename in pdffiles:
+    #     process.pdf_convert(filename)
+    #     print("pages converted to png")
+    # files = os.listdir(CONVERTED_FOLDER)
     processing_status["total_files"] = len(files)
     processing_status["processed_files"] = 0
 
@@ -59,7 +65,7 @@ def upload_file():
     return "Files uploaded successfully", 200
 
 @app.route('/delete', methods=['POST'])
-def delete_file():
+def delete_file(): #duplicate delete for pngs
     filename = request.form['filename']
     file_path = os.path.join(UPLOAD_FOLDER, filename)
     if os.path.exists(file_path):
@@ -69,7 +75,7 @@ def delete_file():
         return "File not found", 404
 
 @app.route('/delete_all', methods=['POST'])
-def delete_all_files():
+def delete_all_files(): #duplicate delete for pngs
     files = os.listdir(UPLOAD_FOLDER)
     for file in files:
         file_path = os.path.join(UPLOAD_FOLDER, file)
